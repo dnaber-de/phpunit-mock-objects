@@ -10,8 +10,10 @@
 namespace PHPUnit\Framework\MockObject\Builder;
 
 use PHPUnit\Framework\Constraint\Constraint;
+use PHPUnit\Framework\MockObject\BadMethodCallException;
 use PHPUnit\Framework\MockObject\Matcher;
 use PHPUnit\Framework\MockObject\Matcher\Invocation;
+use PHPUnit\Framework\MockObject\MockObject;
 use PHPUnit\Framework\MockObject\RuntimeException;
 use PHPUnit\Framework\MockObject\Stub;
 use PHPUnit\Framework\MockObject\Stub\MatcherCollection;
@@ -42,11 +44,21 @@ class InvocationMocker implements MethodNameMatch
     private $configurableMethods = [];
 
     /**
+     * @var MockObject
+     */
+    private $mockObject;
+
+    /**
+     * @var string
+     */
+    private $methodName;
+
+    /**
      * @param MatcherCollection $collection
      * @param Invocation        $invocationMatcher
      * @param array             $configurableMethods
      */
-    public function __construct(MatcherCollection $collection, Invocation $invocationMatcher, array $configurableMethods)
+    public function __construct(MatcherCollection $collection, Invocation $invocationMatcher, array $configurableMethods, MockObject $mock = null)
     {
         $this->collection = $collection;
         $this->matcher    = new Matcher($invocationMatcher);
@@ -54,6 +66,7 @@ class InvocationMocker implements MethodNameMatch
         $this->collection->addMatcher($this->matcher);
 
         $this->configurableMethods = $configurableMethods;
+        $this->mockObject = $mock;
     }
 
     /**
@@ -96,6 +109,28 @@ class InvocationMocker implements MethodNameMatch
      */
     public function willReturn($value, ...$nextValues)
     {
+        $this->mockObject;
+        $reflection = ( $this->mockObject instanceof \ReflectionObject )
+            ? $this->mockObject
+            : new \ReflectionObject($this->mockObject);
+        $returnType = $reflection->getMethod($this->methodName)
+            ->getReturnType()
+            ->getName();
+
+        $valueType = gettype($value);
+        $sanitizedTypes = [
+            'bool' => 'boolean',
+            'int' => 'integer',
+            'str' => 'string',
+        ];
+        if ( array_key_exists($returnType, $sanitizedTypes)) {
+            $returnType = $sanitizedTypes[$returnType];
+        }
+
+        if($valueType !== $returnType) {
+            //throw new BadMethodCallException("Return type does not match type hint of original class");
+        }
+
         if (\count($nextValues) === 0) {
             $stub = new Stub\ReturnStub($value);
         } else {
@@ -271,6 +306,9 @@ class InvocationMocker implements MethodNameMatch
             );
         }
 
+        if (is_string($constraint)) {
+            $this->methodName = $constraint;
+        }
         $this->matcher->setMethodNameMatcher(new Matcher\MethodName($constraint));
 
         return $this;

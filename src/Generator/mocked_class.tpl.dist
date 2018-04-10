@@ -8,7 +8,7 @@
 {clone}{mocked_methods}
     public function expects(\PHPUnit\Framework\MockObject\Matcher\Invocation $matcher)
     {
-        return $this->__phpunit_getInvocationMocker()->expects($matcher);
+        return $this->__phpunit_getInvocationMocker()->expects($matcher, $this);
     }
 {method}
     public function __phpunit_setOriginalObject($originalObject)
